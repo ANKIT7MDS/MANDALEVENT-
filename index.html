@@ -56,10 +56,10 @@
 <div id="alertBox"></div>
 <header>BJP मंडल इवेंट मैनेजमेंट</header>
 <nav>
-  <button onclick="switchTab('dashboard')" class="active">डैशबोर्ड</button>
-  <button onclick="switchTab('schedule')">कार्यक्रम विवरण</button>
-  <button onclick="switchTab('coordinators')">संयोजक</button>
-  <button onclick="switchTab('report')">रिपोर्ट</button>
+  <button onclick="switchTab('dashboard', event)" class="active">डैशबोर्ड</button>
+  <button onclick="switchTab('schedule', event)">कार्यक्रम विवरण</button>
+  <button onclick="switchTab('coordinators', event)">संयोजक</button>
+  <button onclick="switchTab('report', event)">रिपोर्ट</button>
 </nav>
 <!-- डैशबोर्ड Tab -->
 <div class="container tab" id="dashboard">
@@ -148,8 +148,6 @@
   </div>
 </div>
 <script>
-
-// ------ Firebase Config ------
 const firebaseConfig = {
   apiKey: "AIzaSyCI1EL8iFVJnOWbd58Bq5JrJg_IgZuCvA0",
   authDomain: "mandaleventall.firebaseapp.com",
@@ -171,11 +169,11 @@ function showAlert(msg, type='normal') {
   box.style.display = 'block';
   setTimeout(()=>{box.style.display='none';}, 2500);
 }
-function switchTab(tabId) {
+function switchTab(tabId, e) {
   document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
   document.getElementById(tabId).classList.remove('hidden');
-  event.target.classList.add('active');
+  if (e) e.target.classList.add('active');
   if(tabId==='dashboard'){ loadReports(); }
   if(['schedule','coordinators','report'].includes(tabId)) populateEventDropdowns();
 }
@@ -335,7 +333,7 @@ function exportTableToCSV(filename) {
     }
     csv.push(rowData.join(','));
   }
-  let csvStr = csv.join("\n");
+  let csvStr = csv.join("\\n");
   let blob = new Blob([csvStr], { type: "text/csv" });
   let link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -362,3 +360,5 @@ window.onload = () => {
 </script>
 </body>
 </html>
+'''
+
