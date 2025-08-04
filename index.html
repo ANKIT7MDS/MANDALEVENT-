@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>BJP मंडल इवेंट मैनेजमेंट</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    :root {
+      --main: #e65100;
+      --main-dark: #bf360c;
+      --accent: #fffde7;
+      --green: #388e3c;
+      --red: #c62828;
+      --popup-bg: rgba(0,0,0,0.5);
+    }
+    body {margin:0; font-family: 'Segoe UI', sans-serif; background: var(--accent);}
+    header {background: linear-gradient(90deg, var(--main), var(--main-dark));color:white;padding:24px 0 18px 0;text-align:center;font-size:2rem;letter-spacing:1px;box-shadow:0 4px 12px rgba(230,81,0,0.07);}
+    nav {display:flex;justify-content:center;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.04);}
+    nav button {flex:1;padding:16px 0;border:none;font-size:17px;cursor:pointer;background:transparent;transition:background 0.2s,color 0.2s;color:var(--main-dark);font-weight:500;}
+    nav button.active,nav button:hover {background:var(--main);color:#fff;font-weight:bold;}
+    .container {max-width:650px;margin:40px auto 0 auto;background:#fff;border-radius:15px;box-shadow:0 2px 20px rgba(0,0,0,0.10);padding:34px 24px 30px 24px;min-height:350px;}
+    @media (max-width:700px){.container{margin:24px 4px 0 4px;padding:18px 4vw;}nav{flex-direction:column;}nav button{border-bottom:1px solid #eee;}}
+    h2 {margin-top:0;color:var(--main-dark);font-size:1.38rem;margin-bottom:20px;letter-spacing:1px;}
+    input,select,textarea {width:100%;padding:11px 9px;margin-bottom:17px;border-radius:6px;border:1px solid #ddd;font-size:1rem;}
+    input:focus,select:focus,textarea:focus {border:1.6px solid var(--main);outline:none;background:#fff8f0;}
+    textarea {min-height:55px;}
+    button.submit {background:var(--main-dark);color:#fff;padding:11px 0;width:100%;font-size:1.08rem;border:none;border-radius:7px;margin-top:10px;font-weight:bold;letter-spacing:1px;cursor:pointer;}
+    button.submit:hover {background:#d84315;}
+    .status-yes {color:var(--green);font-weight:bold;}
+    .status-no {color:var(--red);font-weight:bold;}
+    .file-upload {margin-bottom:15px;}
+    table {width:100%;border-collapse:collapse;margin-bottom:13px;font-size:1rem;margin-top:20px;background:#f8f5f1;border-radius:8px;overflow:hidden;}
+    th,td {border:1px solid #f1e7d3;padding:8px 10px;text-align:left;}
+    th {background:#ffe0b2;color:var(--main-dark);}
+    .actions button {padding:3px 7px;font-size:16px;margin-right:2px;border-radius:4px;border:none;background:#eee;color:var(--main-dark);cursor:pointer;}
+    .actions button:hover {background:var(--main);color:#fff;}
+    .hidden {display:none;}
+    #reportModal {display:none; position:fixed; left:0;top:0;width:100vw;height:100vh;z-index:100;background:var(--popup-bg);align-items:center;justify-content:center;}
+    #reportModal.active {display:flex; animation: fadePopup 0.5s;}
+    @keyframes fadePopup {0%{opacity:0;transform:translateY(60px) scale(0.92);}100%{opacity:1;transform:none;}}
+    #reportModalContent {background:white;max-width:440px;width:96vw;padding:28px 18px 18px 18px;border-radius:14px;position:relative;box-shadow:0 8px 48px rgba(0,0,0,0.16);}
+    #reportModalContent img {max-width:85px;max-height:70px;margin:4px;border-radius:8px;border:1.2px solid #eee;cursor:pointer;transition:transform .22s;}
+    #reportModalContent img:hover {transform:scale(1.1);}
+    #reportModalContent h3{margin:0 0 10px 0;}
+    #reportModal button.close {position:absolute;top:10px;right:12px;font-size:21px;border:none;background:none;cursor:pointer;}
+    #alertBox {position:fixed;top:32px;right:23px;z-index:999;background:#e65100;color:#fff;padding:13px 23px;border-radius:9px;font-size:1.09rem;display:none;box-shadow:0 8px 24px rgba(230,81,0,0.15);}
+    #alertBox.success {background:#388e3c;}
+    #alertBox.error {background:#c62828;}
+  </style>
+</head>
+<body>
+<div id="alertBox"></div>
+<header>BJP मंडल इवेंट मैनेजमेंट</header>
+<nav>
+  <button onclick="switchTab('dashboard')" class="active">डैशबोर्ड</button>
+  <button onclick="switchTab('schedule')">कार्यक्रम विवरण</button>
+  <button onclick="switchTab('coordinators')">संयोजक</button>
+  <button onclick="switchTab('report')">रिपोर्ट</button>
+</nav>
+<!-- डैशबोर्ड Tab -->
+<div class="container tab" id="dashboard">
+  <h2>कार्यक्रम जोड़ें</h2>
+  <input type="text" id="eventNameInput" placeholder="कार्यक्रम का नाम">
+  <button class="submit" onclick="addEvent()">कार्यक्रम जोड़ें</button>
+  <div style="margin-bottom:7px; margin-top:14px;">
+    <button onclick="exportTableToCSV('events.csv')">CSV Export</button>
+    <button onclick="exportTableToPDF()">PDF Export</button>
+  </div>
+  <h2>कार्यक्रमों की सूची</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>कार्यक्रम</th>
+        <th>तारीख</th>
+        <th>समय</th>
+        <th>स्थान</th>
+        <th>संयोजक</th>
+        <th>रिपोर्ट</th>
+        <th>एक्शन</th>
+      </tr>
+    </thead>
+    <tbody id="eventTableBody">
+      <tr><td colspan="7" style="text-align:center;">डेटा लोड हो रहा है...</td></tr>
+    </tbody>
+  </table>
+  <h2>सबमिटेड रिपोर्ट लिस्ट</h2>
+  <table id="reportTable">
+    <thead>
+      <tr>
+        <th>कार्यक्रम</th>
+        <th>मंडल</th>
+        <th>तारीख</th>
+        <th>समय</th>
+        <th>उपस्थिति</th>
+        <th>फोटो</th>
+        <th>एक्शन</th>
+      </tr>
+    </thead>
+    <tbody id="reportTableBody">
+      <tr><td colspan="7" style="text-align:center;">डेटा लोड हो रहा है...</td></tr>
+    </tbody>
+  </table>
+</div>
+<!-- कार्यक्रम विवरण Tab -->
+<div class="container tab hidden" id="schedule">
+  <h2>कार्यक्रम विवरण भरें</h2>
+  <select id="scheduleEventSelect"><option selected disabled>कार्यक्रम चुनें</option></select>
+  <input type="date" id="eventDate">
+  <input type="time" id="eventTime">
+  <input type="text" id="eventLocation" placeholder="स्थान">
+  <button class="submit" onclick="saveEventDetails()">कार्यक्रम विवरण सेव करें</button>
+</div>
+<!-- संयोजक Tab -->
+<div class="container tab hidden" id="coordinators">
+  <h2>संयोजक जोड़ें</h2>
+  <select id="coordinatorEventSelect"><option selected disabled>कार्यक्रम चुनें</option></select>
+  <input type="text" id="co1" placeholder="संयोजक 1 का नाम">
+  <input type="text" id="co1m" placeholder="मोबाइल नंबर">
+  <input type="text" id="co2" placeholder="संयोजक 2 का नाम">
+  <input type="text" id="co2m" placeholder="मोबाइल नंबर">
+  <input type="text" id="co3" placeholder="संयोजक 3 का नाम">
+  <input type="text" id="co3m" placeholder="मोबाइल नंबर">
+  <button class="submit" onclick="saveCoordinators()">संयोजक जोड़ें</button>
+</div>
+<!-- रिपोर्ट Tab: सिर्फ़ रिपोर्टिंग फॉर्म -->
+<div class="container tab hidden" id="report">
+  <h2>रिपोर्ट सबमिट करें</h2>
+  <select id="reportEventSelect"><option selected disabled>कार्यक्रम चुनें</option></select>
+  <input type="text" id="mandal" placeholder="मंडल का नाम">
+  <input type="text" id="guests" placeholder="मुख्य अतिथि (1 से 6, कॉमा से)">
+  <input type="date" id="reportDate">
+  <input type="time" id="reportTime">
+  <input type="text" id="reportLocation" placeholder="स्थान">
+  <input type="number" id="attendance" placeholder="उपस्थिति संख्या">
+  <input class="file-upload" type="file" id="reportPhotos" multiple>
+  <textarea id="notes" placeholder="अन्य जानकारी"></textarea>
+  <button class="submit" onclick="submitReport()">रिपोर्ट सबमिट करें</button>
+</div>
+<!-- Report Detail Modal -->
+<div id="reportModal">
+  <div id="reportModalContent">
+    <button onclick="closeReportModal()" class="close">&times;</button>
+    <div id="reportDetailBox"></div>
+  </div>
+</div>
+<script>
+
+// ------ Firebase Config ------
+const firebaseConfig = {
+  apiKey: "AIzaSyCI1EL8iFVJnOWbd58Bq5JrJg_IgZuCvA0",
+  authDomain: "mandaleventall.firebaseapp.com",
+  projectId: "mandaleventall",
+  storageBucket: "mandaleventall.firebasestorage.app",
+  messagingSenderId: "900190130114",
+  appId: "1:900190130114:web:bc7d9e2283b3ac57bc505b",
+  measurementId: "G-2BBZZNRS88"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+const botToken = "8064306737:AAFvXvc3vIT1kyccGiPbpYGCAr9dgKJcRzw";
+const chatId = "733804072";
+function showAlert(msg, type='normal') {
+  let box = document.getElementById('alertBox');
+  box.innerText = msg;
+  box.className = (type==='success'?'success':(type==='error'?'error':''));
+  box.style.display = 'block';
+  setTimeout(()=>{box.style.display='none';}, 2500);
+}
+function switchTab(tabId) {
+  document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
+  document.getElementById(tabId).classList.remove('hidden');
+  event.target.classList.add('active');
+  if(tabId==='dashboard'){ loadReports(); }
+  if(['schedule','coordinators','report'].includes(tabId)) populateEventDropdowns();
+}
+async function addEvent() {
+  const eventName = document.getElementById('eventNameInput').value.trim();
+  if (!eventName) return showAlert("कार्यक्रम का नाम भरें!","error");
+  await db.collection('events').add({name: eventName, createdAt: new Date()});
+  document.getElementById('eventNameInput').value = '';
+  loadEvents();
+  populateEventDropdowns();
+  showAlert("कार्यक्रम जोड़ दिया गया!","success");
+}
+async function loadEvents() {
+  const tbody = document.getElementById('eventTableBody');
+  tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>डेटा लोड हो रहा है...</td></tr>";
+  const snap = await db.collection('events').orderBy("createdAt").get();
+  tbody.innerHTML = "";
+  snap.forEach(doc => {
+    const e = doc.data();
+    tbody.innerHTML += `<tr>
+      <td>${e.name}</td>
+      <td>${e.date||'-'}</td>
+      <td>${e.time||'-'}</td>
+      <td>${e.location||'-'}</td>
+      <td>${(e.coordinators||[]).map(c=>c.name).join(', ')||'-'}</td>
+      <td>${e.reported?"<span class='status-yes'>✅ आयी</span>":"<span class='status-no'>❌ नहीं</span>"}</td>
+      <td class="actions"><button title="Delete" onclick="deleteEvent('${doc.id}')">🗑️</button></td>
+    </tr>`;
+  });
+}
+async function populateEventDropdowns() {
+  const snap = await db.collection('events').orderBy("createdAt").get();
+  ['scheduleEventSelect','coordinatorEventSelect','reportEventSelect'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = `<option selected disabled>कार्यक्रम चुनें</option>`;
+    snap.forEach(doc => sel.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`);
+  });
+}
+async function saveEventDetails() {
+  const eventId = document.getElementById('scheduleEventSelect').value;
+  const date = document.getElementById('eventDate').value;
+  const time = document.getElementById('eventTime').value;
+  const location = document.getElementById('eventLocation').value.trim();
+  if(!eventId||!date||!time||!location) return showAlert("पूरा विवरण भरें!","error");
+  await db.collection('events').doc(eventId).update({date,time,location});
+  showAlert("कार्यक्रम विवरण सेव हो गया!","success");
+  loadEvents();
+}
+async function saveCoordinators() {
+  const eventId = document.getElementById('coordinatorEventSelect').value;
+  const c = [
+    {name:document.getElementById('co1').value.trim(),mobile:document.getElementById('co1m').value.trim()},
+    {name:document.getElementById('co2').value.trim(),mobile:document.getElementById('co2m').value.trim()},
+    {name:document.getElementById('co3').value.trim(),mobile:document.getElementById('co3m').value.trim()}
+  ].filter(x=>x.name&&x.mobile);
+  if(!eventId||c.length===0) return showAlert("संयोजकों की जानकारी भरें!","error");
+  await db.collection('events').doc(eventId).update({coordinators:c});
+  showAlert("संयोजक सेव हो गए!","success");
+  loadEvents();
+}
+async function sendTelegramAlert(msg) {
+  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({chat_id: chatId, text: msg})
+  });
+}
+async function submitReport() {
+  const eventId = document.getElementById('reportEventSelect').value;
+  const mandal = document.getElementById('mandal').value.trim();
+  const guests = document.getElementById('guests').value.trim();
+  const date = document.getElementById('reportDate').value;
+  const time = document.getElementById('reportTime').value;
+  const location = document.getElementById('reportLocation').value.trim();
+  const attendance = document.getElementById('attendance').value;
+  const notes = document.getElementById('notes').value.trim();
+  const files = document.getElementById('reportPhotos').files;
+  if(!eventId||!mandal||!date||!time||!location) return showAlert("सभी जरूरी फील्ड भरें!","error");
+  let photoURLs = [];
+  for(let i=0;i<files.length && i<10;i++) {
+    const ref = storage.ref('reports/'+Date.now()+'_'+files[i].name);
+    await ref.put(files[i]);
+    const url = await ref.getDownloadURL();
+    photoURLs.push(url);
+  }
+  await db.collection('reports').add({eventId, mandal, guests, date, time, location, attendance, photoURLs, notes, submittedAt: new Date()});
+  await db.collection('events').doc(eventId).update({reported:true});
+  loadEvents();
+  let alertMsg = `🚨 *नई रिपोर्ट आयी!*
+कार्यक्रम: ${eventMap[eventId]||eventId}
+मंडल: ${mandal}
+उपस्थिति: ${attendance}`;
+  sendTelegramAlert(alertMsg);
+  showAlert("रिपोर्ट सबमिट हो गई!","success");
+  loadReports();
+}
+async function deleteEvent(id) {
+  if(!confirm("क्या आप वाकई हटाना चाहते हैं?")) return;
+  await db.collection('events').doc(id).delete();
+  loadEvents(); populateEventDropdowns();
+}
+const eventMap = {};
+async function buildEventMap() {
+  const snap = await db.collection('events').get();
+  snap.forEach(doc=>{eventMap[doc.id]=doc.data().name});
+}
+async function loadReports() {
+  const tbody = document.getElementById('reportTableBody');
+  tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>डेटा लोड हो रहा है...</td></tr>";
+  await buildEventMap();
+  const snap = await db.collection('reports').orderBy("submittedAt", "desc").get();
+  tbody.innerHTML = "";
+  snap.forEach(doc => {
+    const r = doc.data();
+    tbody.innerHTML += `<tr class="animated">
+      <td>${eventMap[r.eventId]||r.eventId}</td>
+      <td>${r.mandal||"-"}</td>
+      <td>${r.date||"-"}</td>
+      <td>${r.time||"-"}</td>
+      <td>${r.attendance||"-"}</td>
+      <td>${(r.photoURLs||[]).length>0 ? `<button onclick="window.open('${r.photoURLs[0]}')">देखें</button>` : "-"}</td>
+      <td><button onclick="viewReport('${doc.id}')">👁️</button></td>
+    </tr>`;
+  });
+}
+async function viewReport(id) {
+  const doc = await db.collection('reports').doc(id).get();
+  if(!doc.exists) return showAlert("रिपोर्ट नहीं मिली!","error");
+  const r = doc.data();
+  let html = `
+    <h3 style="color:#e65100; margin:0 0 10px 0;">कार्यक्रम: ${eventMap[r.eventId]||'-'}</h3>
+    <div><b>मंडल:</b> ${r.mandal||'-'}</div>
+    <div><b>मुख्य अतिथि:</b> ${r.guests||'-'}</div>
+    <div><b>तारीख:</b> ${r.date||'-'} <b>समय:</b> ${r.time||'-'}</div>
+    <div><b>स्थान:</b> ${r.location||'-'}</div>
+    <div><b>उपस्थिति:</b> ${r.attendance||'-'}</div>
+    <div><b>अन्य जानकारी:</b> ${r.notes||'-'}</div>
+    <div style="margin:14px 0 7px 0;"><b>फोटो (${(r.photoURLs||[]).length}):</b><br>
+      ${(r.photoURLs||[]).map(url=>`<img src="${url}" title="बड़ा देखने के लिए क्लिक करें" onclick="window.open('${url}')" >`).join('')}
+    </div>
+    <div><b>Submitted:</b> ${r.submittedAt?.toDate?.().toLocaleString?.() || '-'}</div>
+  `;
+  document.getElementById('reportDetailBox').innerHTML = html;
+  document.getElementById('reportModal').classList.add('active');
+}
+function closeReportModal() {
+  document.getElementById('reportModal').classList.remove('active');
+}
+function exportTableToCSV(filename) {
+  const table = document.querySelector('#eventTableBody').parentNode;
+  let csv = [];
+  for(let row of table.rows) {
+    let rowData = [];
+    for(let cell of row.cells) {
+      rowData.push('"' + cell.innerText.replace(/"/g, '""') + '"');
+    }
+    csv.push(rowData.join(','));
+  }
+  let csvStr = csv.join("\n");
+  let blob = new Blob([csvStr], { type: "text/csv" });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+function exportTableToPDF() {
+  const table = document.querySelector('#eventTableBody').parentNode;
+  html2pdf().from(table).set({
+    margin: 0.2,
+    filename: 'events.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+  }).save();
+}
+window.onload = () => {
+  loadEvents();
+  populateEventDropdowns();
+  loadReports();
+};
+</script>
+</body>
+</html>
